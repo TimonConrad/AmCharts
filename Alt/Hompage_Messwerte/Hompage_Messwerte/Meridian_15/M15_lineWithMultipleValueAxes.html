@@ -1,0 +1,292 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+    
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>Meridian 15</title>
+        <link rel="stylesheet" href="../amcharts/images/style.css" type="text/css">
+        <script src="../amcharts/amcharts.js" type="text/javascript"></script>        
+        <script type="text/javascript">
+ 
+			// Deklaration der verwendeten Variablen
+			var chartData = [];
+			var chart; 
+
+			// Hauptfunktion, die alles andere aufruft
+			AmCharts.ready(function () 
+			{
+				// CSV-Datei laden
+				loadCSV("mdaten/Daten.csv");
+				// Diagramm aufbauen
+				createStockChart();
+			});
+			
+ 			// CSV-Datei einlesen ***************************************************************
+			// (Aufruf durch obige Funktion! - AmCharts.ready)
+			function loadCSV(file) {
+				if (window.XMLHttpRequest) {
+					// IE7+, Firefox, Chrome, Opera, Safari
+					var request = new XMLHttpRequest();
+				}
+				else {
+					// code for IE6, IE5
+					var request = new ActiveXObject('Microsoft.XMLHTTP');
+				}
+				// load - laden
+				request.open('GET', file, false);
+				request.send();
+				parseCSV(request.responseText);
+			}
+     
+			// Aufbereiten der CSV-Daten 
+			// (Aufruf durch obige Funktion! - loadCSV)
+			function parseCSV(data) { 
+				//replace UNIX new lines 
+				data = data.replace (/\r\n/g, "\n");
+				//replace MAC new lines
+				data = data.replace (/\r/g, "\n");
+				//split into rows
+				var rows = data.split("\n");
+				
+				// Schleife durch alle Zeilen-Beginn bei Zeile 1 (Kopf mit Spaltenname überspringen) 
+				for (var i = 1; i < rows.length; i++){
+
+				// this line helps to skip empty rows -leere Zeilen zu ueberspringen
+					if (rows[i]) {                    
+
+						// Felder sind getrennt durch Semikolon
+						var column = rows[i].split(';');
+						
+						// Datum aus ersten Element generieren
+						//var date = new Date(column[0], column[1]- 1, column[2]);
+						var date = new Date(2014, 9, 7);
+						// Zeit aus zweitem Element hinzufügen
+						date.setHours(0, 0, 0, column[2]);//
+						
+						//  Wert als "Value 1+i" verwenden
+						//var value1 = Math.round(column[3]* 10)/10; //  Temparatur (BMP180)
+						//var value2 = Math.round(column[4]* 10)/10; //  Luftdruck (BMP180)
+						//var value3 = Math.round(column[5]* 10)/10; //  Berechnente Hoehe (BMP180)
+						//var value4 = Math.round(column[6]* 10)/10; //  Fallgeschwindigkeit (BMP180)
+						//var value5 = Math.round(column[7]* 10)/10; //  Temperatur (LM-35)
+						//var value6 = Math.round(column[8]* 10)/10; //  rel. Luftfeuchtigkeit (HIH-4021-003)
+						//var value7 = Math.round(column[10]* 10)/10; // Globale Strahlung [W/m2]
+						//var value8 = Math.round(column[12]* 10)/10; // Indirekte Strahlung [W/m2]
+						//var value9 = Math.round(column[16]* 10)/10; //  Albedo
+						
+						var value3 = Math.round(column[5]* 10)/10; //  Berechnente Hoehe (BMP180)
+						var value4 = Math.round(column[6]* 10)/10; //  Fallgeschwindigkeit (BMP180)
+						var dataObject = {date:date, value3: value3, value4:value4};
+						
+						// Map (einzelner Datenwert) mit den drei Datenwerten erzeugen
+						//var dataObject = {date:date, value1:value1, value2:value2, value3: value3, value4:value4, value5:value5, value6:value6, value7:value7, value8:value8, value9:value9};
+
+						// Map dem Gesamtdatensatz hinzufügen
+						chartData.push(dataObject);
+					}
+				}
+		    }
+
+			// Diagramm erzeugen ***************************************************************** 
+			// (Aufruf durch obige Funktion! - AmCharts.ready)
+			function createStockChart() {                // SERIAL CHART    
+                chart = new AmCharts.AmSerialChart();
+                chart.pathToImages = "../amcharts/images/";
+                chart.zoomOutButton = {
+                    backgroundColor: '#000000',
+                    backgroundAlpha: 0.80
+                };
+                chart.dataProvider = chartData;
+                chart.categoryField = "date";
+				chart.numberFormatter = {
+					precision:-1,decimalSeparator:",",thousandsSeparator:""
+				};
+
+                // listen for "dataUpdated" event (fired when chart is inited) and call zoomChart method when it happens
+                chart.addListener("dataUpdated", zoomChart);
+
+                // AXES *********************************************
+                // category                
+                var categoryAxis = chart.categoryAxis;
+                categoryAxis.parseDates = true; // as our data is date-based, we set parseDates to true
+                categoryAxis.minPeriod =  "ss";// "fff"; =ms"ss"; =Sekunden "mm";= Minuten // our data is daily, so we set minPeriod to DD
+                categoryAxis.dashLength = 2; //2;
+                categoryAxis.gridAlpha = 0.15;
+                categoryAxis.axisColor = "#DADADA";
+
+                // first value axis (on the left)
+                var valueAxis1 = new AmCharts.ValueAxis();
+				valueAxis1.title = "Temparatur (BMP180)";
+				valueAxis1.axisColor = "#FF6600";
+                valueAxis1.axisThickness = 2;
+                valueAxis1.gridAlpha = 0;
+                chart.addValueAxis(valueAxis1);
+
+                // second value axis (on the right) 
+                var valueAxis2 = new AmCharts.ValueAxis();
+ 				valueAxis2.title = "Luftdruck (BMP180)";
+				valueAxis2.position = "right"; // this line makes the axis to appear on the right
+                valueAxis2.axisColor = "#B0DE09";
+                valueAxis2.gridAlpha = 0;
+                valueAxis2.axisThickness = 2;
+                chart.addValueAxis(valueAxis2);
+
+                // third value axis (on the left, detached)
+                valueAxis3 = new AmCharts.ValueAxis();
+ 				valueAxis3.title = "Flughöhe";
+				valueAxis3.position = "right";
+                valueAxis3.offset = 120; // this line makes the axis to appear detached from plot area
+                valueAxis3.gridAlpha = 0;
+                valueAxis3.axisColor = "#FCD202";
+				valueAxis3.unit = " m";
+                chart.addValueAxis(valueAxis3);
+
+                // third value axis (on the left, detached)
+                valueAxis4 = new AmCharts.ValueAxis();
+ 				valueAxis4.title = "Fallgeschwindigkeit";
+				valueAxis4.position = "right";
+                valueAxis4.offset = 25; // this line makes the axis to appear detached from plot area
+                valueAxis4.gridAlpha = 0;
+                valueAxis4.axisColor = "#FCD202";
+				valueAxis4.unit = " m/s";
+                valueAxis4.axisThickness = 2;
+                chart.addValueAxis(valueAxis4);
+				
+                // GRAPHS **********************************************
+                // first graph
+                var graph1 = new AmCharts.AmGraph();
+                graph1.valueAxis = valueAxis3; // we have to indicate which value axis should be used
+                graph1.valueField = "value3";
+                graph1.title = "Berechnete Höhe (BMP180)";
+                graph1.bullet = "round";
+                graph1.hideBulletsCount = 30;
+                chart.addGraph(graph1);
+
+                // second graph                
+                var graph2 = new AmCharts.AmGraph();
+                graph2.valueAxis = valueAxis4; // we have to indicate which value axis should be used
+                graph2.valueField = "value4";
+			    graph2.title = "Fallgeschwindigkeit (BMP180)";
+                graph2.bullet = "square";
+                graph2.hideBulletsCount = 30;
+                chart.addGraph(graph2);
+
+                // third graph
+                var graph3 = new AmCharts.AmGraph();
+                graph3.valueAxis = valueAxis1; // we have to indicate which value axis should be used
+				graph3.valueField = "value1";
+                graph3.title = "Temperatur (LM-35)";
+                graph3.bullet = "triangleUp";
+                graph3.hideBulletsCount = 30;
+                chart.addGraph(graph3);
+
+                // 4 graph
+                var graph4 = new AmCharts.AmGraph();
+                graph4.valueAxis = valueAxis1; // we have to indicate which value axis should be used
+                graph4.valueField = "value4";
+                graph4.title = "Fallgeschwindigkeit (BMP180)";
+                graph4.bullet = "round";
+                graph4.hideBulletsCount = 30;
+                chart.addGraph(graph4);
+
+                // 5 graph
+                var graph5 = new AmCharts.AmGraph();
+                graph5.valueAxis = valueAxis1; // we have to indicate which value axis should be used
+                graph5.valueField = "value5";
+                graph5.title = "Temperatur (LM-35)";
+                graph5.bullet = "square";
+                graph5.hideBulletsCount = 30;
+                chart.addGraph(graph5);
+
+                // 6 graph
+                var graph6 = new AmCharts.AmGraph();
+                graph6.valueAxis = valueAxis1; // we have to indicate which value axis should be used
+                graph6.valueField = "value6";
+                graph6.title = "rel. Luftfeuchtigkeit (HIH-4021-003)";
+                graph6.bullet = "triangleUp";
+                graph6.hideBulletsCount = 30;
+                chart.addGraph(graph6);
+				
+                // 7 graph
+                var graph7 = new AmCharts.AmGraph();
+                graph7.valueAxis = valueAxis2; // we have to indicate which value axis should be used
+                graph7.valueField = "value7";
+                graph7.title = "Globale Strahlung [W/m2]";
+                graph7.bullet = "round";
+                graph7.hideBulletsCount = 30;
+                chart.addGraph(graph7);
+				
+                // 8 graph
+                var graph8 = new AmCharts.AmGraph();
+                graph8.valueAxis = valueAxis2; // we have to indicate which value axis should be used
+                graph8.valueField = "value8";
+                graph8.title = "Indirekte Strahlung [W/m2]";
+                graph8.bullet = "square";
+                graph8.hideBulletsCount = 30;
+                chart.addGraph(graph8);
+				
+                 // 9 graph
+                var graph9 = new AmCharts.AmGraph();
+                graph9.valueAxis = valueAxis3; // we have to indicate which value axis should be used
+                graph9.valueField = "value9";
+                graph9.title = "Albedo";
+                graph9.bullet = "triangleUp";
+                graph9.hideBulletsCount = 30;
+                chart.addGraph(graph9);
+
+				//CURSOR
+                var chartCursor = new AmCharts.ChartCursor();
+                chartCursor.cursorPosition = "mouse";
+                chart.addChartCursor(chartCursor);
+				
+
+                // SCROLLBAR
+                var chartScrollbar = new AmCharts.ChartScrollbar();
+                chart.addChartScrollbar(chartScrollbar);
+
+                // LEGEND
+                var legend = new AmCharts.AmLegend();
+                legend.marginLeft = 110;
+                chart.addLegend(legend);
+
+                // WRITE
+                chart.write("chartdiv");
+            }
+
+
+            // this method is called when chart is first inited as we listen for "dataUpdated" event
+            function zoomChart() {
+                // different zoom methods can be used - zoomToIndexes, zoomToDates, zoomToCategoryValues
+                chart.zoomToIndexes(10, 20);
+            }
+	</script>
+
+<style type="text/css">
+#box1 { position:absolute; top:0px; left:0px; width:1024px; height:768px; z-index:0; }
+#box2 {position:absolute; font-family: Arial Narrow; font-size: 12pt; color: rgb(0,0,0); font-style: normal; font-weight: bold; text-align: left; top:20px; left:30px; z-index:0; }
+</style>
+</head>
+    
+<body onload="set_dimenson_para ()">
+ 
+	 <!--########## Definitionen der Anzeigeparameter #<div id="pos0">letzer Eintrag:</div>#########-->
+
+	
+	<div id="box1"><img src="images/cs_Lueftung_24h.png" alt="Grafik" usemap="#Grafik">
+		<map name="Grafik">
+			<area shape="rect" coords="870,20,1005,110"
+				href="cs_7_csv_Onlineschema.html" alt="Lueftung" title="Onlineschema Lüftung">
+			<area shape="rect" coords="870,230,1005,320"
+				href="cs_8_lineWithMultipleValueAxes_24h.html" alt="24h" title="Die letzen 24 Stunden neu laden">
+			<area shape="rect" coords="870,335,1005,425"
+				href="cs_8_lineWithMultipleValueAxes_h.html" alt="Stundenwerte" title="Stundenwerte">
+			<area shape="rect" coords="870,440,1005,530"
+				href="cs_8_lineWithMultipleValueAxes_d.html" alt="Tagesmittelwerte" title="Tagesmittelwerte">
+		</map>
+	</div>
+	<div id="box2"><h1>Meridian 15 Messdatenauswertung</div>
+	
+	<div id="chartdiv" style="position:absolute; top:100px; left:20px; width: 830px; height: 600px;"></div>
+	
+
+</html>
